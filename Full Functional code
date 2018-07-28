@@ -1,0 +1,253 @@
+// To function on phaser you need to copy & paste on the tabs that have the same name of this section
+
+//---------------------------------------------
+//Section 1: PRELOAD
+//---------------------------------------------
+
+function preload() {
+	game.stage.backgroundColor = '#285885'; //Color del background en hexadecimal
+    
+	//game.load.image('fondo','https://pbs.twimg.com/media/C3df3qaUEAEW-DD.jpg');
+    
+	game.load.crossOrigin = 'anonymous';
+    
+	game.load.image('platform', 'https://phaser.io/content/tutorials/coding-tips-003/ice-platform.png');
+    
+	game.load.image('snowball','https://vignette.wikia.nocookie.net/clubpenguin/images/0/04/Snowball.png/revision/latest?cb=20140616182803')
+
+	game.load.spritesheet('trump', 'https://3.bp.blogspot.com/-_NVjscKbE7Q/WLB4GtYM6PI/AAAAAAAAIyk/iGm67QmaiV0v0VKNSnG5pzenizWGsbvyQCLcB/s1600/trump_run.png', 100, 100, 24);
+
+	game.load.spritesheet('pen', 'https://scontent.fmex5-1.fna.fbcdn.net/v/t34.0-12/28233744_1924343230909354_1883905372_n.png?oh=921bc8c264673fbaf24da83af66e9e59&oe=5AA482B7', 41, 42, 64);
+    
+
+}
+
+//------------------------------------------------
+//Section 2: CREATE
+//------------------------------------------------
+
+var pen;
+var enemy;
+var snowb;
+var fondo;
+var stateText;
+var snowTime=0;
+var face= 'left';
+var platforms, enemies, snowball;
+var p1left, p1right, p1jump, fire;
+
+function create() {
+	//fondo= game.add.image(0,0,'fondo');
+    
+	pen= game.add.sprite(0,500,'pen',5);
+	pen.smoothed= false;
+
+    
+	pen.animations.add('right', [20,21,22,23], 10, true);
+	pen.animations.add('left', [44,45,46,47], 10, true);
+
+ 	//Activamos fisica "Arcade" para el player1
+	game.physics.arcade.enable(pen);
+
+ 	//El player1 va a chocar contra las orillas de la pantalla
+	pen.body.collideWorldBounds = true;
+    
+ 	//Ajustamos la gravedad del player1.
+	pen.body.gravity.y = 450;
+    
+//Build group platforms-----------------------
+    
+	platforms = game.add.physicsGroup(); //build platforms group
+  
+	platforms.create(0,570, 'platform').scale.set(2.2); //ground platform
+
+	platforms.create(500, 150, 'platform');  //Put some platforms in different positions
+	platforms.create(0, 300, 'platform');
+	platforms.create(420, 450, 'platform');
+
+	platforms.setAll('body.immovable', true);  //This is so they cannot move
+	platforms.setAll('scale.y',0.5);
+    
+    
+//Enemies set up----------------------
+
+	enemies= game.add.physicsGroup(); //build enemies group
+    
+	//To know which enemy is which
+	for(var i=0; i<3;i++){
+    	enemy= enemies.create(crearX(i), crearY(i),'trump', 5); //Create enemies in different positions
+   	 
+	}
+    //When working with animations we need to use this for ordering the sprites in the order we want them
+	enemies.callAll('animations.add','animations','right', [6,7,8,9,10,11], 10, true);
+	enemies.callAll('animations.add','animations','left', [18,19,20,21,22,23],10, true);
+    
+	enemies.setAll('body.gravity.y', 500); //how much are they affected by gravity, less== jump higher
+	enemies.setAll('body.collideWorldBounds', true); //so they can't escape from the game
+	game.physics.arcade.enable(enemies);
+    
+    
+//Building snowballs for the player ------------------
+	snowball= game.add.physicsGroup(); //Build snowballs groups
+	snowball.enableBody = true;
+	snowball.physicsBodyType = Phaser.Physics.ARCADE;
+	snowball.createMultiple(30, 'snowball');
+    
+	snowball.setAll('outOfBoundsKill', true); 
+	snowball.setAll('checkWorldBounds', true);
+    
+	snowball.setAll('body.width', 23);
+	snowball.setAll('body.height', 23);
+	snowball.setAll('scale.x', 0.01);
+	snowball.setAll('scale.y', 0.01);
+    
+    
+
+//Player Controls ------------------------------
+
+	p1Left = game.input.keyboard.addKey(Phaser.Keyboard.A);
+	p1Right = game.input.keyboard.addKey(Phaser.Keyboard.D);
+	p1Jump = game.input.keyboard.addKey(Phaser.Keyboard.W);
+	fire = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+
+//Game over Text---------------------------------
+
+	stateText = game.add.text(game.world.centerX,game.world.centerY,'', { font: '84px Arial', fill: '#fff' });
+	stateText.anchor.setTo(0.5, 0.5);
+	stateText.visible = false; //we don't want to show it while we are playing
+}
+//We want the enemies to be on the platforms.
+function crearX(i){
+	if (i%2 === 0) {
+    	return 700;
+	}
+	else return 0;
+}
+function crearY(i){
+	if(i=== 0)
+	if(crearX() === 0){
+    	return 200;
+	}
+	else if(crearX() === 0){
+    	return 350;
+	}
+    	else
+        	return 50;
+   	 
+}
+
+//---------------------------------------------
+//Section 3: UPDATE
+//---------------------------------------------
+
+function update() {
+    
+	game.physics.arcade.collide(enemies,platforms);  //we want them to hit the platforms
+	game.physics.arcade.collide(pen, platforms);
+
+	//When one of the enemies hits the player, the player dies.
+	game.physics.arcade.overlap(pen, enemies, playerCollision, null, this);
+    
+	//Wnen one snowball hits an enemy, the enemy dies.
+	game.physics.arcade.overlap(snowball, enemies, killEnemy, null, this);
+    
+ 	//Idle form in case we are not moving
+  
+	pen.body.velocity.x=0;
+    
+	if (p1Left.isDown)
+	{
+    	pen.body.velocity.x = -250;
+   	 
+    	if(face != 'left'){
+        	pen.animations.play('left');
+        	face = 'left';
+    	}
+    	if (fire.isDown){
+        	fireSnow(-1);
+    	}
+	}
+	else if (p1Right.isDown)
+	{
+    	pen.body.velocity.x = 250;
+    	if(face!='right'){
+        	pen.animations.play('right');
+        	face= 'right';
+    	}
+    	if(fire.isDown){
+        	fireSnow(1);
+    	}
+   	 
+	}else{
+    	if(face!= 'idle'){
+        	pen.animations.stop();
+        	pen.frame=5
+        	face= 'idle'
+    	}
+	}
+
+	if (p1Jump.isDown && (pen.body.onFloor() || pen.body.touching.down))
+	{
+    	pen.body.velocity.y = -400;
+   	 
+	}
+    
+	if (enemies.x === 200 || enemies.x=== 700)
+    {
+   	 game.add.tween(enemies).to( { x: '-200' }, 1000, Phaser.Easing.Linear.None, true);
+   	 enemies.callAll('animations.play', 'animations', 'left');
+	}
+	else if (enemies.x === 0 || enemies.x=== 400)
+    {
+   	 //    Here you'll notice we are using a relative value for the tween.
+   	 //    You can specify a number as a string with either + or - at the start of it.
+   	 //    When the tween starts it will take the sprites current X value and add +300 to it.
+
+   	 game.add.tween(enemies).to( { x: '+200' }, 1000, Phaser.Easing.Linear.None, true);
+   	 enemies.callAll('animations.play', 'animations', 'right');
+    }
+    
+
+}
+function fireSnow(dir){
+	//  Time lapse between shots 
+  
+	if (game.time.now > snowTime)
+	{
+    	//  Agarrar la primera bola de nieve que tengamos
+    	snowb = snowball.getFirstExists(false);
+
+    	if (snowb)
+    	{
+        	//  Dispara!!!
+        	snowb.reset(pen.x+12, pen.y);
+        	if(dir< 0){
+            	snowb.body.velocity.x = -400;
+        	}else if(dir>0){
+            	snowb.body.velocity.x = 400;
+        	}
+        	snowTime = game.time.now + 200;
+    	}
+	}
+}
+
+function killSnowball(snowb){
+	snowb.kill();
+}
+
+function playerCollision(pen,enemy){
+	pen.kill();
+	stateText.text= 'GAME OVER';
+	stateText.visible = true;
+}
+function killEnemy(snowb, enemy){
+	snowb.kill();
+	enemy.kill();
+    
+	if(enemies.countDead()==3){
+    	stateText.text= 'YOU WON!';
+    	stateText.visible =true;
+	}
+}
+
+
